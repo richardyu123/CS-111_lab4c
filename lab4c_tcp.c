@@ -110,6 +110,10 @@ int main(int argc, char ** argv) {
                 host_name = optarg;
                 break;
             case 'f':
+                log_file = fopen(optarg, "w");
+                if (log_file == NULL) {
+                    send_error(strerror(errno), 2);
+                }
                 log_called = 1;
                 break;
             default:
@@ -124,6 +128,19 @@ int main(int argc, char ** argv) {
         send_error("Error: port number is invalid or missing", 1);
     }
     struct sockaddr_in addr;
+    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (socket_fd == -1) {
+        send_error(strerror(errno), 2);
+    }
+    addr.sin_port = htons(port_num);
+    addr.sin_addr.s_addr = host_name;
+    addr.sin_family = AF_INET;
+
+    if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))
+            == -1) {
+        send_error(strerror(errno), 2)
+    }
+
     signal(SIGINT, terminate);
 
     mraa_init();
