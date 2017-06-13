@@ -94,7 +94,7 @@ int main(int argc, char ** argv) {
     static struct option long_options[] = {
         {"id", required_argument, 0, 'i'},
         {"host", required_argument, 0, 'h'},
-        {"log", required_argument, 0, 'f'}
+        {"log", required_argument, 0, 'l'}
     };
     int curr_opt = getopt_long(argc - 1, argv, "i:h:f", long_options, NULL);
     while (curr_opt != -1) {
@@ -109,7 +109,7 @@ int main(int argc, char ** argv) {
             case 'h':
                 host_name = optarg;
                 break;
-            case 'f':
+            case 'l':
                 log_file = fopen(optarg, "w");
                 if (log_file == NULL) {
                     send_error(strerror(errno), 2);
