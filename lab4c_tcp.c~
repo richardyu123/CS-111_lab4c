@@ -133,12 +133,12 @@ int main(int argc, char ** argv) {
         send_error(strerror(errno), 2);
     }
     addr.sin_port = htons(port_num);
-    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_addr.s_addr = host_name;
     addr.sin_family = AF_INET;
 
     if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))
             == -1) {
-        send_error(strerror(errno), 2);
+        send_error(strerror(errno), 2)
     }
 
     signal(SIGINT, terminate);
