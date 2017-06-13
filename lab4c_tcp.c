@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 int running = 1;
 int period = 1;
@@ -38,6 +39,7 @@ mraa_gpio_context buttonContext;
 int log_called = 0;
 int port_num;
 FILE * log_file;
+int socket_fd;
 int id;
 char * host_name;
 
@@ -58,6 +60,7 @@ void terminate() {
             send_error(strerror(errno), 2);
         }
     }
+    close(socket_fd);
     exit(0);   
 }
 
@@ -78,7 +81,7 @@ void generateReports() {
             temperature = temperature * 1.8 + 32;
         }
         sprintf(sample, "%02d:%02d:%02d %04.1f\n", t->tm_hour, t->tm_min, t->tm_sec, temperature);
-        fprintf(stdout, sample);
+        send(socket_fd, sample, strlen(sample), 0);
         if (log_called) {
             fprintf(log_file, sample);
         }
@@ -128,15 +131,20 @@ int main(int argc, char ** argv) {
         send_error("Error: port number is invalid or missing", 1);
     }
     struct sockaddr_in addr;
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1) {
         send_error(strerror(errno), 2);
     }
+    struct hostent * server = gethostbyname(host_name);
+    if (server == NULL) {
+        send_error("Error: unable to connect to host", 2);
+    }
     addr.sin_port = htons(port_num);
-    addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_family = AF_INET;
+    memcpy((char*) &addr.sin_addr.s_addr, (char*)server->h_addr,
+            server->h_length);
 
-    if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))
+    if (connect(socket_fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))
             == -1) {
         send_error(strerror(errno), 2);
     }
@@ -150,16 +158,16 @@ int main(int argc, char ** argv) {
 
     time(&start);
     
+    listen(socket_fd, 5);
     p_fds[0].fd = socket_fd;
-    char message[10];
-    itoa(id, message, 10);
-    send(sock, message, strlen(message), 0);
+    char message[15];
+    sprintf(message, "ID=%9d\n", id);
+    send(socket_fd, message, strlen(message), 0);
     p_fds[0].events = POLLIN | POLLERR;
 
     char buffer[64];
     int periodArg;
     int valid_command;
-
     while (1) {
         // Checks the temperature and records it to stdout and the log
         generateReports();
@@ -170,11 +178,12 @@ int main(int argc, char ** argv) {
         }
 
         // Polls stdin to check if anything has been input
-	int poll_ret = poll(p_fds, 1, timeout);
+	    int poll_ret = poll(p_fds, 1, timeout);
         valid_command = 1;
         if (poll_ret > 0) {
             if (p_fds[0].revents & POLLIN) {
-                scanf("%s", buffer);
+                int i = read(socket_fd, buffer, 64);
+                buffer[i - 1] = '\0';
                 if (strcmp(buffer, "OFF") == 0) {
                     if (log_called) {
                         fprintf(log_file, "%s\n", buffer);
