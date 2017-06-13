@@ -81,7 +81,7 @@ void generateReports() {
             temperature = temperature * 1.8 + 32;
         }
         sprintf(sample, "%02d:%02d:%02d %04.1f\n", t->tm_hour, t->tm_min, t->tm_sec, temperature);
-        fprintf(stdout, sample);
+        send(socket_fd, sample, strlen(sample), 0);
         if (log_called) {
             fprintf(log_file, sample);
         }
@@ -130,7 +130,6 @@ int main(int argc, char ** argv) {
     if ((port_num = atoi(argv[optind])) == 0) {
         send_error("Error: port number is invalid or missing", 1);
     }
-    printf("%s\n", host_name);
     struct sockaddr_in addr;
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1) {
@@ -159,6 +158,7 @@ int main(int argc, char ** argv) {
 
     time(&start);
     
+    listen(socket_fd, 5);
     p_fds[0].fd = socket_fd;
     char message[15];
     sprintf(message, "ID=%9d\n", id);
@@ -178,11 +178,12 @@ int main(int argc, char ** argv) {
         }
 
         // Polls stdin to check if anything has been input
-	int poll_ret = poll(p_fds, 1, timeout);
+	    int poll_ret = poll(p_fds, 1, timeout);
         valid_command = 1;
         if (poll_ret > 0) {
+            printf(buffer);
             if (p_fds[0].revents & POLLIN) {
-                scanf("%s", buffer);
+                read(socket_fd, buffer, 64);
                 if (strcmp(buffer, "OFF") == 0) {
                     if (log_called) {
                         fprintf(log_file, "%s\n", buffer);
