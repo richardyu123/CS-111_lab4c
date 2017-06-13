@@ -130,12 +130,13 @@ int main(int argc, char ** argv) {
     if ((port_num = atoi(argv[optind])) == 0) {
         send_error("Error: port number is invalid or missing", 1);
     }
+    printf("%s\n", host_name);
     struct sockaddr_in addr;
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1) {
         send_error(strerror(errno), 2);
     }
-    struct hostent * server = gethostbyname("lever.cs.ucla.edu");
+    struct hostent * server = gethostbyname(host_name);
     if (server == NULL) {
         send_error("Error: unable to connect to host", 2);
     }
