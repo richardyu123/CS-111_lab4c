@@ -195,7 +195,7 @@ int main(int argc, char ** argv) {
                     running = 1;
                 } else if (strcmp(buffer, "SCALE=F") == 0) {
                     use_celsius = 0;
-                }  else if (strcmp(buffer, "SCALE=C") == 0) {
+                } else if (strcmp(buffer, "SCALE=C") == 0) {
                     use_celsius = 1;
                 } else if (sscanf(buffer, "PERIOD=%d", &periodArg) == 1) {
                     period = periodArg;
