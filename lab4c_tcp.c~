@@ -88,7 +88,7 @@ void generateReports() {
 }
 
 int main(int argc, char ** argv) {
-    if (argc == 1) {
+    if (argc == 0) {
         send_error("Error: there must be an argument for the port number", 1);
     }
     static struct option long_options[] = {
