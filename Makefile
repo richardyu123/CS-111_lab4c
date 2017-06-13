@@ -1,6 +1,7 @@
+.SILENT:
 
 default:
+	gcc -o lab4c_tcp -g lab4c_tcp.c
 
 clean:
-
-dist
+	rm lab4c_tcp
