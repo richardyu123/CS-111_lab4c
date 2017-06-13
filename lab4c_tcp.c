@@ -178,7 +178,7 @@ int main(int argc, char ** argv) {
         }
 
         // Polls stdin to check if anything has been input
-	    int poll_ret = poll(p_fds, 1, timeout);
+        int poll_ret = poll(p_fds, 1, timeout);
         valid_command = 1;
         if (poll_ret > 0) {
             if (p_fds[0].revents & POLLIN) {
