@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 int running = 1;
 int period = 1;
@@ -38,6 +39,7 @@ mraa_gpio_context buttonContext;
 int log_called = 0;
 int port_num;
 FILE * log_file;
+int socket_fd;
 int id;
 char * host_name;
 
@@ -58,6 +60,7 @@ void terminate() {
             send_error(strerror(errno), 2);
         }
     }
+    close(socket_fd);
     exit(0);   
 }
 
@@ -128,15 +131,20 @@ int main(int argc, char ** argv) {
         send_error("Error: port number is invalid or missing", 1);
     }
     struct sockaddr_in addr;
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1) {
         send_error(strerror(errno), 2);
     }
+    struct hostent * server = gethostbyname("lever.cs.ucla.edu");
+    if (server == NULL) {
+        send_error("Error: unable to connect to host", 2);
+    }
     addr.sin_port = htons(port_num);
-    addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_family = AF_INET;
+    memcpy((char*) &addr.sin_addr.s_addr, (char*)server->h_addr,
+            server->h_length);
 
-    if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))
+    if (connect(socket_fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))
             == -1) {
         send_error(strerror(errno), 2);
     }
@@ -151,15 +159,14 @@ int main(int argc, char ** argv) {
     time(&start);
     
     p_fds[0].fd = socket_fd;
-    char message[10];
-    itoa(id, message, 10);
-    send(sock, message, strlen(message), 0);
+    char message[15];
+    sprintf(message, "ID=%9d\n", id);
+    send(socket_fd, message, strlen(message), 0);
     p_fds[0].events = POLLIN | POLLERR;
 
     char buffer[64];
     int periodArg;
     int valid_command;
-
     while (1) {
         // Checks the temperature and records it to stdout and the log
         generateReports();
