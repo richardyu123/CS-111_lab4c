@@ -1,18 +1,88 @@
-#include <getopt.h>
-#include <unistd.h>
+#define _GNU_SOURCE
+
+#include "mraa/aio.h"
+#include "mraa/gpio.h"
+
+#include <signal.h>
 #include <stdlib.h>
+#include <math.h>
 #include <stdio.h>
+#include <time.h>
 #include <string.h>
+#include <pthread.h>
+#include <errno.h>
+#include <unistd.h>
+#include <poll.h>
+#include <getopt.h>
+#include <limits.h>
+
+int running = 1;
+int period = 1;
+int use_celsius = 0;
+
+struct pollfd p_fds[1];
+int timeout = 0;
+mraa_aio_context context;
+uint16_t value;
+float R, temperature;
+time_t start, p_time, curr_time;
+//Guarantees that the program will start by logging a temperature
+double elapsed = INT_MAX;
+struct tm * t;
+char sample[20];  
+
+mraa_gpio_context buttonContext;
 
 int log_called = 0;
 int port_num;
-int log_fd;
+FILE * log_file;
 int id;
 char * host_name;
 
 void send_error(char* error_string, int return_code) {
     fprintf(stderr, "%s\n", error_string);
     exit(return_code);
+}
+
+void shutdown() {
+    //print SHUTDOWN to stdout and logfile
+    curr_time = time(NULL);
+    t = localtime(&currTime);
+    mraa_aio_close(context);
+    mraa_gpio_close(buttonContext);
+    if (log_called) {
+        fprintf(log_file, "%02d:%02d:%02d SHUTDOWN\n", t->tm_hour, t->tm_min, t->tm_sec); 
+        if (fclose(log_file)) {
+            send_error(strerror(errno), 2);
+        }
+    }
+    exit(0);   
+}
+
+void generateReports() {
+    time(&p_time);
+    if (running && elapsed >= (double)period) {
+        time(&start);
+        curr_time = time(NULL);
+        t = localtime(&currTime);
+
+	//Temperature algorithm from wiki.seeed.cc/Grove-Temperature_Sensor_V1.2/
+        value = mraa_aio_read(context);
+        R = 1023.0 / ((float)value) - 1.0;
+        R *= 100000.0;
+        temperature = 1.0 / (log(R / 100000.0) / 4275 + (1 / 298.15)) - 273.15;
+
+        if (!use_celsius) {
+            temperature = temperature * 1.8 + 32;
+        }
+        sprintf(sample, "%02d:%02d:%02d %04.1f\n", t->tm_hour, t->tm_min, t->tm_sec, temperature);
+        fprintf(stdout, sample);
+        if (log_called) {
+            fprintf(log_file, sample);
+        }
+    }
+    elapsed = difftime(p_time, start);
+    
 }
 
 int main(int argc, char ** argv) {
@@ -49,4 +119,62 @@ int main(int argc, char ** argv) {
         send_error("Error: port number is invalid or missing", 1);
     }
     struct sockaddr_in addr;
+    signal(SIGINT, shutdown);
+
+    mraa_init();
+    context = mraa_aio_init(0);
+    buttonContext = mraa_gpio_init(3);
+    mraa_gpio_dir(buttonContext, MRAA_GPIO_IN);
+
+    time(&start);
+    
+    p_fds[0].fd = STDIN_FILENO;
+    p_fds[0].events = POLLIN | POLLERR;
+
+    char buffer[64];
+    int periodArg;
+    int valid_command;
+
+    while (1) {
+        // Checks the temperature and records it to stdout and the log
+        generateReports();
+
+        // Checks if the button has been pressed
+        if (mraa_gpio_read(buttonContext) != 0) {
+            shutdown();
+        }
+
+        // Polls stdin to check if anything has been input
+	int poll_ret = poll(p_fds, 1, timeout);
+        valid_command = 1;
+        if (poll_ret > 0) {
+            if (p_fds[0].revents & POLLIN) {
+                scanf("%s", buffer);
+                if (strcmp(buffer, "OFF") == 0) {
+                    if (log_called) {
+                        fprintf(log_file, "%s\n", buffer);
+                    }
+                    shutdown();
+                } else if (strcmp(buffer, "STOP") == 0) {
+                    running = 0;
+                } else if (strcmp(buffer, "START") == 0) {
+                    running = 1;
+                } else if (strcmp(buffer, "SCALE=F") == 0) {
+                    use_celsius = 0;
+                }  else if (strcmp(buffer, "SCALE=C") == 0) {
+                    use_celsius = 1;
+                } else if (sscanf(buffer, "PERIOD=%d", &periodArg) == 1) {
+                    period = periodArg;
+                } else {
+                    valid_command = 0;
+                }
+                if (log_called && valid_command) {
+                    fprintf(log_file, "%s\n", buffer);
+                }
+            } else if (p_fds[0].revents & POLLERR) {
+                fprintf(stderr, "Error: Error reading from stdin");
+                exit(1);
+            }
+        }
+    }
 }
