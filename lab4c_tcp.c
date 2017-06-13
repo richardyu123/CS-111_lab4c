@@ -181,9 +181,9 @@ int main(int argc, char ** argv) {
 	    int poll_ret = poll(p_fds, 1, timeout);
         valid_command = 1;
         if (poll_ret > 0) {
-            printf(buffer);
             if (p_fds[0].revents & POLLIN) {
-                read(socket_fd, buffer, 64);
+                int i = read(socket_fd, buffer, 64);
+                buffer[i - 1] = '\0';
                 if (strcmp(buffer, "OFF") == 0) {
                     if (log_called) {
                         fprintf(log_file, "%s\n", buffer);
