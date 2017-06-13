@@ -48,4 +48,5 @@ int main(int argc, char ** argv) {
     if ((port_num = atoi(argv[optind])) == 0) {
         send_error("Error: port number is invalid or missing", 1);
     }
+    struct sockaddr_in addr;
 }
