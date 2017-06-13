@@ -150,7 +150,10 @@ int main(int argc, char ** argv) {
 
     time(&start);
     
-    p_fds[0].fd = STDIN_FILENO;
+    p_fds[0].fd = socket_fd;
+    char message[10];
+    itoa(id, message, 10);
+    send(sock, message, strlen(message), 0);
     p_fds[0].events = POLLIN | POLLERR;
 
     char buffer[64];
