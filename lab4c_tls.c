@@ -87,7 +87,7 @@ void generateReports() {
             temperature = temperature * 1.8 + 32;
         }
         sprintf(sample, "%02d:%02d:%02d %04.1f\n", t->tm_hour, t->tm_min, t->tm_sec, temperature);
-        send(socket_fd, sample, strlen(sample), 0);
+        SSL_write(socket_fd, sample, strlen(sample));
         if (log_called) {
             fprintf(log_file, sample);
         }
@@ -137,10 +137,15 @@ int main(int argc, char ** argv) {
     time(&start);
     
     listen(socket_fd, 5);
+
+    ssl_ctx = SSL_CTX_new(SSLv23_server_method());
+    server_ssl = SSL_new(ssl_ctx);
+    SSL_set_fd(server_ssl, socket_fd);
+
     p_fds[0].fd = socket_fd;
     char message[15];
     sprintf(message, "ID=%9d\n", id);
-    send(socket_fd, message, strlen(message), 0);
+    SSL_write(socket_fd, message, strlen(message));
     p_fds[0].events = POLLIN | POLLERR;
 
     char buffer[64];
@@ -160,7 +165,7 @@ int main(int argc, char ** argv) {
         valid_command = 1;
         if (poll_ret > 0) {
             if (p_fds[0].revents & POLLIN) {
-                int i = read(socket_fd, buffer, 64);
+                int i = SSL_read(socket_fd, buffer, 64);
                 buffer[i - 1] = '\0';
                 if (strcmp(buffer, "OFF") == 0) {
                     if (log_called) {
