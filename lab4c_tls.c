@@ -136,7 +136,7 @@ int main(int argc, char ** argv) {
 
     time(&start);
     
-    ssl_ctx = SSL_CTX_new(SSLv23_server_method());
+    ssl_ctx = SSL_CTX_new(SSLv23_client_method());
     server_ssl = SSL_new(ssl_ctx);
     SSL_set_fd(server_ssl, socket_fd);
     if (SSL_connect(server_ssl) != 1) {

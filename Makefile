@@ -1,5 +1,7 @@
 .SILENT:
 
+FILES=lab4c_tcp.c lab4c_tls.c README Makefile
+
 default: tcp tls
 
 tcp:
@@ -10,3 +12,6 @@ tls:
 
 clean:
 	rm lab4c_tcp lab4c_tls
+
+dist:
+	tar -zcvf lab4c-304464688.tar.gz $(FILES)
