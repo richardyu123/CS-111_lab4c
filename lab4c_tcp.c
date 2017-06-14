@@ -87,7 +87,6 @@ void generateReports() {
         }
     }
     elapsed = difftime(p_time, start);
-    
 }
 
 int main(int argc, char ** argv) {
@@ -136,6 +135,12 @@ int main(int argc, char ** argv) {
         send_error(strerror(errno), 2);
     }
     struct hostent * server = gethostbyname(host_name);
+    if (server == NULL) {
+        server = gethostbyaddr(host_name, strlen(host_name), AF_INET);
+        if (server == NULL) {
+            send_error("Error: cannot find host", 1);
+        }
+    }
     if (server == NULL) {
         send_error("Error: unable to connect to host", 2);
     }

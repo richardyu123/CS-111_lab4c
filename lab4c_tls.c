@@ -43,7 +43,7 @@ mraa_aio_context context;
 int log_called = 0;
 int port_num;
 FILE * log_file;
-int socket_fd, ssl_socket_fd;
+int socket_fd;
 int id;
 char * host_name;
 
@@ -103,6 +103,9 @@ void initialize_ssl() {
 }
 
 int main(int argc, char ** argv) {
+    if (argc != 1) {
+        send_error("Error: this program takes no arguments", 1);
+    }
     port_num = 19000;
     id = 304464688;
     host_name = "lever.cs.ucla.edu";
